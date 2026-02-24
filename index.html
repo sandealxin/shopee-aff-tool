@@ -169,34 +169,49 @@
         }
 
         function extractCanonicalShopeeProductUrl(raw) {
-            const target = extractFirstUrlFromText(raw);
+    const target = extractFirstUrlFromText(raw);
 
-            let u;
-            try {
-                u = new URL(target);
-            } catch {
-                throw new Error("Định dạng link không hợp lệ");
-            }
+    let u;
+    try {
+        u = new URL(target);
+    } catch {
+        throw new Error("Định dạng link không hợp lệ");
+    }
 
-            // Không xử lý s.shopee.vn ở đây (đã xử lý ở normalizeShopeeInputAny)
-            if (!/(^|\.)shopee\./i.test(u.hostname) || u.hostname === "s.shopee.vn") {
-                throw new Error("Không phải link Shopee hợp lệ");
-            }
+    // Không xử lý s.shopee.vn ở đây (đã xử lý ở normalizeShopeeInputAny)
+    if (!/(^|\.)shopee\./i.test(u.hostname) || u.hostname === "s.shopee.vn") {
+        throw new Error("Không phải link Shopee hợp lệ");
+    }
 
-            // 1) /product/<shopid>/<itemid>
-            let m = u.pathname.match(/^\/product\/(\d+)\/(\d+)\/?$/i);
-            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+    // 1) /product/<shopid>/<itemid>
+    let m = u.pathname.match(/^\/product\/(\d+)\/(\d+)\/?$/i);
+    if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
 
-            // 2) /i.<shopid>.<itemid>
-            m = u.pathname.match(/^\/i\.(\d+)\.(\d+)\/?$/i);
-            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+    // 2) /i.<shopid>.<itemid>
+    m = u.pathname.match(/^\/i\.(\d+)\.(\d+)\/?$/i);
+    if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
 
-            // 3) slug ...-i.<shopid>.<itemid>
-            m = u.pathname.match(/-i\.(\d+)\.(\d+)\/?$/i);
-            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+    // 3) slug ...-i.<shopid>.<itemid>
+    m = u.pathname.match(/-i\.(\d+)\.(\d+)\/?$/i);
+    if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
 
-            throw new Error("Không thể tách shop_id và item_id từ link Shopee");
+    // 4) NEW FORMAT: /<shopname>/<shopid>/<itemid>
+    // Example: /opaanlp/111138057/20567055749
+    m = u.pathname.match(/^\/[^\/]+\/(\d+)\/(\d+)\/?$/i);
+    if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+    // 5) EXTRA ROBUST FALLBACK: if last 2 path segments are numeric, use them
+    const segments = u.pathname.split('/').filter(Boolean);
+    if (segments.length >= 2) {
+        const shopId = segments[segments.length - 2];
+        const itemId = segments[segments.length - 1];
+        if (/^\d+$/.test(shopId) && /^\d+$/.test(itemId)) {
+            return `${u.origin}/product/${shopId}/${itemId}`;
         }
+    }
+
+    throw new Error("Không thể tách shop_id và item_id từ link Shopee");
+}
 
         async function normalizeShopeeInputAny(rawInput) {
             const target = extractFirstUrlFromText(rawInput);

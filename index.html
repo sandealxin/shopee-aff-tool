@@ -105,10 +105,10 @@
     </div>
 
     <script>
-        // --- CẤU HÌNH CỐ ĐỊNH (CLIENT KHÔNG THẤY) ---
+        // --- CẤU HÌNH ---
         const MY_AFFILIATE_ID = "17395860139";
-        const MY_DEFAULT_SUB_ID = "client_tool"; // Tracking mặc định cho khách
-        const apiKey = ""; // Gemini API
+        const MY_DEFAULT_SUB_ID = "generator"; // Hidden default sub_id
+        const apiKey = ""; // Gemini API (frontend key sẽ lộ nếu bạn điền vào đây)
         const RESOLVER_API = "https://shopee-aff-tool.dogtor6900.workers.dev/"; 
 
         // State
@@ -140,35 +140,96 @@
 
         // --- Core Logic ---
 
-        function normalizeShopeeUrl(raw) {
-            let text = raw.trim();
-            if (!text) throw new Error("Vui lòng nhập link");
+        function extractFirstUrlFromText(text) {
+            const raw = String(text || "").trim();
+            if (!raw) throw new Error("Vui lòng nhập link");
 
-            // Extract URL from text if user pasted extra text
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            const matches = text.match(urlRegex);
-            const target = matches ? matches[0] : text;
+            const urlRegex = /(https?:\/\/[^\s]+)/i;
+            const match = raw.match(urlRegex);
+            return (match ? match[0] : raw).trim();
+        }
+
+        async function resolveShortShopeeLink(shortUrl) {
+            if (!RESOLVER_API) {
+                throw new Error("Chưa cấu hình RESOLVER_API (Cloudflare Worker)");
+            }
+
+            const res = await fetch(RESOLVER_API, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: shortUrl })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.finalUrl) {
+                throw new Error(data.error || "Không thể resolve link rút gọn Shopee");
+            }
+
+            return data.finalUrl;
+        }
+
+        function extractCanonicalShopeeProductUrl(raw) {
+            const target = extractFirstUrlFromText(raw);
 
             let u;
-            try { u = new URL(target); } catch { throw new Error("Định dạng link không hợp lệ"); }
-            
-            // Patterns for product extraction
-            let m = u.pathname.match(/\/product\/(\d+)\/(\d+)/i) || 
-                    u.pathname.match(/\/i\.(\d+)\.(\d+)/i) || 
-                    u.pathname.match(/-i\.(\d+)\.(\d+)/i);
+            try {
+                u = new URL(target);
+            } catch {
+                throw new Error("Định dạng link không hợp lệ");
+            }
 
+            // Không xử lý s.shopee.vn ở đây (đã xử lý ở normalizeShopeeInputAny)
+            if (!/(^|\.)shopee\./i.test(u.hostname) || u.hostname === "s.shopee.vn") {
+                throw new Error("Không phải link Shopee hợp lệ");
+            }
+
+            // 1) /product/<shopid>/<itemid>
+            let m = u.pathname.match(/^\/product\/(\d+)\/(\d+)\/?$/i);
             if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
-            if (u.hostname.includes("shopee.vn")) return target;
-            
-            throw new Error("Không thể xác định link Shopee này");
+
+            // 2) /i.<shopid>.<itemid>
+            m = u.pathname.match(/^\/i\.(\d+)\.(\d+)\/?$/i);
+            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+            // 3) slug ...-i.<shopid>.<itemid>
+            m = u.pathname.match(/-i\.(\d+)\.(\d+)\/?$/i);
+            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+            throw new Error("Không thể tách shop_id và item_id từ link Shopee");
+        }
+
+        async function normalizeShopeeInputAny(rawInput) {
+            const target = extractFirstUrlFromText(rawInput);
+
+            let u;
+            try {
+                u = new URL(target);
+            } catch {
+                throw new Error("Định dạng link không hợp lệ");
+            }
+
+            // Case 1: Shopee affiliate redirect link (an_redir)
+            if (u.hostname === "s.shopee.vn" && u.pathname === "/an_redir") {
+                const originLink = u.searchParams.get("origin_link");
+                if (!originLink) throw new Error("Link an_redir thiếu origin_link");
+                return extractCanonicalShopeeProductUrl(originLink);
+            }
+
+            // Case 2: Shopee short code link -> resolve bằng Cloudflare Worker
+            if (u.hostname === "s.shopee.vn" && u.pathname !== "/an_redir") {
+                const finalUrl = await resolveShortShopeeLink(target);
+                return normalizeShopeeInputAny(finalUrl); // recursive parse
+            }
+
+            // Case 3: Normal Shopee URL
+            return extractCanonicalShopeeProductUrl(target);
         }
 
         async function generateLink() {
             const input = document.getElementById('inputUrl').value;
-            const out = document.getElementById('out');
             const btn = document.getElementById('genBtn');
 
-            if (!input) {
+            if (!input || !input.trim()) {
                 showToast("Bạn chưa dán link vào!", "error");
                 return;
             }
@@ -177,20 +238,20 @@
             btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ĐANG XỬ LÝ...`;
 
             try {
-                const normalized = normalizeShopeeUrl(input);
-                
+                const normalized = await normalizeShopeeInputAny(input);
+
                 const params = new URLSearchParams();
                 params.set("origin_link", normalized);
                 params.set("affiliate_id", MY_AFFILIATE_ID);
                 params.set("sub_id", MY_DEFAULT_SUB_ID);
-                
+
                 const finalLink = `https://s.shopee.vn/an_redir?${params.toString()}`;
-                
+
                 renderResult(finalLink);
                 addToHistory(finalLink);
                 showToast("Tạo link thành công!", "success");
             } catch (e) {
-                showToast(e.message, "error");
+                showToast(e.message || "Có lỗi xảy ra", "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span>CHUYỂN ĐỔI LINK NGAY</span>`;
@@ -291,6 +352,12 @@
 
             if (!query) return showToast("Vui lòng nhập tên sản phẩm", "error");
 
+            if (!apiKey) {
+                container.innerHTML = `<p class="col-span-full text-center text-gray-400 py-10 font-medium">Chưa cấu hình Gemini API key. Tạm thời hãy dùng tab TẠO LINK nhé.</p>`;
+                showToast("Chưa cấu hình API key cho tab tìm sản phẩm", "error");
+                return;
+            }
+
             btn.disabled = true;
             btn.innerText = "ĐANG TÌM KIẾM...";
             container.innerHTML = `<div class="col-span-full py-20 flex flex-col items-center gap-4">
@@ -313,16 +380,16 @@
                 const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 const products = JSON.parse(jsonStr);
 
-                if (products.length === 0) throw new Error();
+                if (!Array.isArray(products) || products.length === 0) throw new Error();
 
                 container.innerHTML = products.map(p => `
                     <div class="bg-white border-2 border-gray-50 rounded-3xl p-5 hover:border-orange-100 hover:shadow-xl transition-all group">
                         <div class="w-full aspect-square bg-gray-50 rounded-2xl mb-4 flex items-center justify-center text-gray-200 group-hover:bg-orange-50 transition-colors">
                              <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         </div>
-                        <h4 class="font-bold text-sm text-gray-800 line-clamp-2 mb-2 h-10 leading-snug">${p.name}</h4>
-                        <p class="text-[#f53d2d] font-extrabold text-lg mb-3">${p.price}</p>
-                        <button onclick="document.getElementById('tab-gen').click(); document.getElementById('inputUrl').value='${p.link}'; generateLink();" 
+                        <h4 class="font-bold text-sm text-gray-800 line-clamp-2 mb-2 h-10 leading-snug">${p.name || "Sản phẩm"}</h4>
+                        <p class="text-[#f53d2d] font-extrabold text-lg mb-3">${p.price || ""}</p>
+                        <button onclick="document.getElementById('tab-gen').click(); document.getElementById('inputUrl').value='${p.link || ""}'; generateLink();" 
                             class="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-[#f53d2d] transition-all">
                             CHỌN SẢN PHẨM
                         </button>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopee Affiliate Pro - Công Cụ Toàn Diện</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .shopee-gradient {
+            background: linear-gradient(135deg, #f53d2d 0%, #f6a000 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .tab-active {
+            border-bottom: 3px solid #f53d2d;
+            color: #f53d2d;
+        }
+    </style>
+</head>
+<body class="pb-20">
+    <!-- Navbar -->
+    <nav class="bg-white border-b sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 shopee-gradient rounded-lg flex items-center justify-center text-white font-bold italic">S</div>
+                <span class="font-bold text-xl tracking-tight text-gray-800">Affiliate<span class="text-[#f53d2d]">Pro</span></span>
+            </div>
+            <div class="hidden md:flex gap-6 text-sm font-semibold text-gray-500">
+                <a href="#" class="hover:text-[#f53d2d] transition-colors">Hướng dẫn</a>
+                <a href="#" class="hover:text-[#f53d2d] transition-colors">Cộng đồng</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-3xl mx-auto px-4 mt-8">
+        <!-- Tab Switcher -->
+        <div class="flex bg-white rounded-2xl p-1 shadow-sm mb-6 border">
+            <button onclick="switchTab('generate')" id="tab-gen" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all tab-active">
+                TẠO LINK
+            </button>
+            <button onclick="switchTab('search')" id="tab-search" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all text-gray-400">
+                TÌM SẢN PHẨM
+            </button>
+        </div>
+
+        <!-- GENERATE TAB -->
+        <div id="section-generate" class="space-y-6">
+            <div class="glass-card rounded-3xl shadow-xl p-6 md:p-8">
+                <div class="space-y-6">
+                    <!-- Input Section -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-3 ml-1">Dán Link Shopee Của Bạn</label>
+                        <textarea id="inputUrl" placeholder="Ví dụ: https://shopee.vn/ten-san-pham-i.123.456 hoặc link rút gọn s.shopee.vn..." 
+                            class="w-full h-44 p-5 rounded-2xl border-2 border-gray-100 focus:border-[#f53d2d] outline-none transition-all bg-gray-50/30 text-base leading-relaxed"></textarea>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button id="genBtn" class="shopee-gradient w-full py-5 rounded-2xl text-white font-extrabold text-lg shadow-lg shadow-orange-200/50 hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span>CHUYỂN ĐỔI LINK NGAY</span>
+                    </button>
+                </div>
+
+                <div id="out" class="mt-8"></div>
+            </div>
+
+            <!-- History Section -->
+            <div class="bg-white rounded-2xl border p-5 shadow-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                        <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Lịch sử tạo link
+                    </h3>
+                    <button onclick="clearHistory()" class="text-[10px] text-gray-400 hover:text-red-500 font-bold uppercase tracking-wider transition-colors">Xóa lịch sử</button>
+                </div>
+                <div id="historyList" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    <p class="text-xs text-center text-gray-400 py-4 italic">Chưa có link nào được tạo trong phiên này</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEARCH TAB -->
+        <div id="section-search" class="hidden space-y-6">
+            <div class="glass-card rounded-3xl shadow-xl p-6">
+                <div class="relative mb-6">
+                    <input type="text" id="searchQuery" placeholder="Nhập tên sản phẩm muốn tìm..." 
+                        class="w-full py-4 pl-12 pr-4 rounded-2xl border-2 border-gray-100 focus:border-[#f53d2d] outline-none transition-all shadow-inner bg-gray-50">
+                    <svg class="w-6 h-6 absolute left-4 top-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <button id="searchBtn" class="bg-gray-800 text-white w-full py-4 rounded-xl font-extrabold hover:bg-black transition-all shadow-lg">TÌM KIẾM ƯU ĐÃI</button>
+                
+                <div id="searchResults" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Search items will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CẤU HÌNH CỐ ĐỊNH (CLIENT KHÔNG THẤY) ---
+        const MY_AFFILIATE_ID = "17395860139";
+        const MY_DEFAULT_SUB_ID = "client_tool"; // Tracking mặc định cho khách
+        const apiKey = ""; // Gemini API
+        const RESOLVER_API = ""; 
+
+        // State
+        let history = [];
+
+        // Tab System
+        function switchTab(tab) {
+            const genSection = document.getElementById('section-generate');
+            const searchSection = document.getElementById('section-search');
+            const tabGen = document.getElementById('tab-gen');
+            const tabSearch = document.getElementById('tab-search');
+
+            if (tab === 'generate') {
+                genSection.classList.remove('hidden');
+                searchSection.classList.add('hidden');
+                tabGen.classList.add('tab-active');
+                tabGen.classList.remove('text-gray-400');
+                tabSearch.classList.remove('tab-active');
+                tabSearch.classList.add('text-gray-400');
+            } else {
+                genSection.classList.add('hidden');
+                searchSection.classList.remove('hidden');
+                tabSearch.classList.add('tab-active');
+                tabSearch.classList.remove('text-gray-400');
+                tabGen.classList.remove('tab-active');
+                tabGen.classList.add('text-gray-400');
+            }
+        }
+
+        // --- Core Logic ---
+
+        function normalizeShopeeUrl(raw) {
+            let text = raw.trim();
+            if (!text) throw new Error("Vui lòng nhập link");
+
+            // Extract URL from text if user pasted extra text
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const matches = text.match(urlRegex);
+            const target = matches ? matches[0] : text;
+
+            let u;
+            try { u = new URL(target); } catch { throw new Error("Định dạng link không hợp lệ"); }
+            
+            // Patterns for product extraction
+            let m = u.pathname.match(/\/product\/(\d+)\/(\d+)/i) || 
+                    u.pathname.match(/\/i\.(\d+)\.(\d+)/i) || 
+                    u.pathname.match(/-i\.(\d+)\.(\d+)/i);
+
+            if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+            if (u.hostname.includes("shopee.vn")) return target;
+            
+            throw new Error("Không thể xác định link Shopee này");
+        }
+
+        async function generateLink() {
+            const input = document.getElementById('inputUrl').value;
+            const out = document.getElementById('out');
+            const btn = document.getElementById('genBtn');
+
+            if (!input) {
+                showToast("Bạn chưa dán link vào!", "error");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ĐANG XỬ LÝ...`;
+
+            try {
+                const normalized = normalizeShopeeUrl(input);
+                
+                const params = new URLSearchParams();
+                params.set("origin_link", normalized);
+                params.set("affiliate_id", MY_AFFILIATE_ID);
+                params.set("sub_id", MY_DEFAULT_SUB_ID);
+                
+                const finalLink = `https://s.shopee.vn/an_redir?${params.toString()}`;
+                
+                renderResult(finalLink);
+                addToHistory(finalLink);
+                showToast("Tạo link thành công!", "success");
+            } catch (e) {
+                showToast(e.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span>CHUYỂN ĐỔI LINK NGAY</span>`;
+            }
+        }
+
+        function renderResult(link) {
+            const out = document.getElementById('out');
+            out.innerHTML = `
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6 rounded-3xl animate-[fadeIn_0.3s_ease-out] shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-emerald-700 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                             <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                             Link của bạn đã sẵn sàng
+                        </span>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-green-100 shadow-inner mb-5 select-all break-all text-blue-600 font-bold text-sm leading-relaxed">
+                        ${link}
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="copyLink('${link}')" class="bg-emerald-600 text-white py-4 rounded-xl font-extrabold text-sm shadow-md hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                             SAO CHÉP LINK
+                        </button>
+                        <button onclick="window.open('${link}', '_blank')" class="bg-white border-2 border-emerald-600 text-emerald-600 py-4 rounded-xl font-extrabold text-sm hover:bg-emerald-50 transition-all">
+                             TRUY CẬP THỬ
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addToHistory(link) {
+            const item = { link, time: new Date().toLocaleTimeString('vi-VN') };
+            history.unshift(item);
+            if (history.length > 15) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-center text-gray-400 py-4 italic">Chưa có link nào được tạo trong phiên này</p>`;
+                return;
+            }
+            container.innerHTML = history.map(h => `
+                <div class="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl group hover:bg-orange-50 transition-colors border border-transparent hover:border-orange-100">
+                    <div class="flex-1 truncate pr-4">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter mb-0.5">${h.time}</p>
+                        <p class="text-xs font-semibold text-gray-600 truncate">${h.link}</p>
+                    </div>
+                    <button onclick="copyLink('${h.link}')" class="p-2 bg-white rounded-lg border shadow-sm opacity-60 group-hover:opacity-100 transition-opacity hover:text-orange-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            history = [];
+            renderHistory();
+            showToast("Đã xóa lịch sử", "success");
+        }
+
+        async function copyLink(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast("Đã chép link thành công!", "success");
+            } catch (err) {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("Đã chép link thành công!", "success");
+            }
+        }
+
+        function showToast(msg, type = "success") {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-3.5 rounded-2xl text-white font-bold text-sm z-[100] shadow-2xl animate-[fadeIn_0.3s_ease-out] ${type === 'success' ? 'bg-gray-900/90 backdrop-blur-sm' : 'bg-red-500'}`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, 10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // --- Search Logic ---
+        async function searchShopee() {
+            const query = document.getElementById('searchQuery').value;
+            const container = document.getElementById('searchResults');
+            const btn = document.getElementById('searchBtn');
+
+            if (!query) return showToast("Vui lòng nhập tên sản phẩm", "error");
+
+            btn.disabled = true;
+            btn.innerText = "ĐANG TÌM KIẾM...";
+            container.innerHTML = `<div class="col-span-full py-20 flex flex-col items-center gap-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-4 border-orange-100 border-t-[#f53d2d]"></div>
+                <p class="text-gray-400 text-sm font-medium">Đang tìm deals ngon cho bạn...</p>
+            </div>`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Tìm 4 sản phẩm ${query} trên Shopee Việt Nam. Trả về JSON: [{name, price, rating, link}]. Chỉ JSON.` }] }],
+                        tools: [{ google_search: {} }]
+                    })
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+                const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const products = JSON.parse(jsonStr);
+
+                if (products.length === 0) throw new Error();
+
+                container.innerHTML = products.map(p => `
+                    <div class="bg-white border-2 border-gray-50 rounded-3xl p-5 hover:border-orange-100 hover:shadow-xl transition-all group">
+                        <div class="w-full aspect-square bg-gray-50 rounded-2xl mb-4 flex items-center justify-center text-gray-200 group-hover:bg-orange-50 transition-colors">
+                             <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h4 class="font-bold text-sm text-gray-800 line-clamp-2 mb-2 h-10 leading-snug">${p.name}</h4>
+                        <p class="text-[#f53d2d] font-extrabold text-lg mb-3">${p.price}</p>
+                        <button onclick="document.getElementById('tab-gen').click(); document.getElementById('inputUrl').value='${p.link}'; generateLink();" 
+                            class="w-full py-3 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-[#f53d2d] transition-all">
+                            CHỌN SẢN PHẨM
+                        </button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<p class="col-span-full text-center text-gray-400 py-10 font-medium">Không tìm thấy sản phẩm. Bạn hãy thử lại từ khóa khác nhé.</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "TÌM KIẾM ƯU ĐÃI";
+            }
+        }
+
+        document.getElementById('genBtn').onclick = generateLink;
+        document.getElementById('searchBtn').onclick = searchShopee;
+
+        window.onload = () => {
+            document.getElementById('inputUrl').focus();
+        };
+    </script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+    </style>
+</body>
+</html>

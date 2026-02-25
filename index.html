@@ -86,7 +86,7 @@
                 <div id="out" class="mt-8"></div>
             </div>
 
-            <!-- Instruction Section - Made Larger -->
+            <!-- Instruction Section -->
             <div id="how-to" class="bg-white rounded-3xl border-2 border-orange-50 p-8 shadow-md">
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-6 flex items-center gap-3">
                     <svg class="w-7 h-7 text-[#f53d2d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -161,8 +161,8 @@
     <script>
         const MY_AFFILIATE_ID = "17395860139";
         const MY_DEFAULT_SUB_ID = "generator";
-        const apiKey = ""; 
-        const RESOLVER_API = "https://shopee-link-resolver.dogtor6900.workers.dev/"; 
+        const apiKey = "";
+        const RESOLVER_API = "https://shopee-link-resolver.dogtor6900.workers.dev/";
 
         let history = [];
 
@@ -189,81 +189,136 @@
             }
         }
 
+        // PATCH 1: Tự thêm https:// nếu user dán thiếu protocol
         function extractFirstUrlFromText(text) {
-            const raw = String(text || "").trim();
+            let raw = String(text || "").trim();
             if (!raw) throw new Error("Vui lòng nhập link");
+
+            // Nếu user dán thiếu protocol:
+            // - s.shopee.vn/xxxxx
+            // - shopee.vn/product/...
+            if (!/^https?:\/\//i.test(raw) && /^(s\.shopee\.vn|(?:[\w-]+\.)?shopee\.vn)\b/i.test(raw)) {
+                raw = "https://" + raw;
+            }
+
+            // Nếu user dán kèm text, trích URL đầu tiên
             const urlRegex = /(https?:\/\/[^\s]+)/i;
             const match = raw.match(urlRegex);
             return (match ? match[0] : raw).trim();
         }
 
         async function resolveShortShopeeLink(shortUrl) {
-            const res = await fetch(RESOLVER_API, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: shortUrl })
-            });
+            let res;
+            try {
+                res = await fetch(RESOLVER_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: shortUrl })
+                });
+            } catch (err) {
+                throw new Error("Không thể kết nối dịch vụ xử lý link rút gọn (Worker/CORS)");
+            }
+
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.finalUrl) throw new Error(data.error || "Không thể resolve link rút gọn");
+            if (!res.ok || !data.finalUrl) {
+                throw new Error(data.error || "Không thể resolve link rút gọn");
+            }
             return data.finalUrl;
         }
 
+        // PATCH 2: Hỗ trợ format mới /<shopname>/<shopid>/<itemid>
         function extractCanonicalShopeeProductUrl(raw) {
             const target = extractFirstUrlFromText(raw);
             let u;
-            try { u = new URL(target); } catch { throw new Error("Định dạng link không hợp lệ"); }
-            if (!/(^|\.)shopee\./i.test(u.hostname) || u.hostname === "s.shopee.vn") throw new Error("Không phải link Shopee hợp lệ");
+            try {
+                u = new URL(target);
+            } catch {
+                throw new Error("Định dạng link không hợp lệ. Vui lòng dán link đầy đủ (ví dụ: https://s.shopee.vn/xxxxx)");
+            }
 
+            // Không xử lý s.shopee.vn ở đây (đã xử lý ở normalizeShopeeInputAny)
+            if (!/(^|\.)shopee\./i.test(u.hostname) || u.hostname === "s.shopee.vn") {
+                throw new Error("Không phải link Shopee hợp lệ");
+            }
+
+            // 1) /product/<shopid>/<itemid>
             let m = u.pathname.match(/^\/product\/(\d+)\/(\d+)\/?$/i);
             if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+            // 2) /i.<shopid>.<itemid>
             m = u.pathname.match(/^\/i\.(\d+)\.(\d+)\/?$/i);
             if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+            // 3) slug ...-i.<shopid>.<itemid>
             m = u.pathname.match(/-i\.(\d+)\.(\d+)\/?$/i);
             if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
+
+            // 4) FORMAT MỚI: /<shopname>/<shopid>/<itemid>
+            // Ví dụ: /opaanlp/111138057/20567055749
             m = u.pathname.match(/^\/[^\/]+\/(\d+)\/(\d+)\/?$/i);
             if (m) return `${u.origin}/product/${m[1]}/${m[2]}`;
 
+            // 5) Fallback: nếu 2 segment cuối đều là số thì lấy làm shop_id/item_id
             const segments = u.pathname.split('/').filter(Boolean);
             if (segments.length >= 2) {
                 const shopId = segments[segments.length - 2];
                 const itemId = segments[segments.length - 1];
-                if (/^\d+$/.test(shopId) && /^\d+$/.test(itemId)) return `${u.origin}/product/${shopId}/${itemId}`;
+                if (/^\d+$/.test(shopId) && /^\d+$/.test(itemId)) {
+                    return `${u.origin}/product/${shopId}/${itemId}`;
+                }
             }
-            throw new Error("Không thể tách ID sản phẩm");
+
+            throw new Error("Không thể tách shop_id và item_id từ link Shopee");
         }
 
         async function normalizeShopeeInputAny(rawInput) {
             const target = extractFirstUrlFromText(rawInput);
             let u;
-            try { u = new URL(target); } catch { throw new Error("Định dạng link không hợp lệ"); }
 
+            try {
+                u = new URL(target);
+            } catch {
+                throw new Error("Định dạng link không hợp lệ. Vui lòng dán link đầy đủ (ví dụ: https://s.shopee.vn/xxxxx)");
+            }
+
+            // Case 1: Link affiliate Shopee dạng an_redir
             if (u.hostname === "s.shopee.vn" && u.pathname === "/an_redir") {
                 const originLink = u.searchParams.get("origin_link");
                 if (!originLink) throw new Error("Link an_redir thiếu origin_link");
                 return extractCanonicalShopeeProductUrl(originLink);
             }
+
+            // Case 2: Link rút gọn Shopee -> resolve bằng Worker
             if (u.hostname === "s.shopee.vn" && u.pathname !== "/an_redir") {
                 const finalUrl = await resolveShortShopeeLink(target);
-                return normalizeShopeeInputAny(finalUrl);
+                return normalizeShopeeInputAny(finalUrl); // recursive parse
             }
+
+            // Case 3: Link Shopee thường
             return extractCanonicalShopeeProductUrl(target);
         }
 
         async function generateLink() {
             const input = document.getElementById('inputUrl').value;
             const btn = document.getElementById('genBtn');
-            if (!input || !input.trim()) return showToast("Bạn chưa dán link vào!", "error");
+
+            if (!input || !input.trim()) {
+                return showToast("Bạn chưa dán link vào!", "error");
+            }
 
             btn.disabled = true;
             btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ĐANG XỬ LÝ...`;
 
             try {
                 const normalized = await normalizeShopeeInputAny(input);
+
                 const params = new URLSearchParams();
                 params.set("origin_link", normalized);
                 params.set("affiliate_id", MY_AFFILIATE_ID);
                 params.set("sub_id", MY_DEFAULT_SUB_ID);
+
                 const finalLink = `https://s.shopee.vn/an_redir?${params.toString()}`;
+
                 renderResult(finalLink);
                 addToHistory(finalLink);
                 showToast("Tạo link thành công!", "success");
